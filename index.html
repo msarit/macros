@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Macro Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Playfair Display', 'serif'],
+            body: ['DM Sans', 'sans-serif'],
+          },
+          colors: {
+            blush:  { 50: '#fff5f7', 100: '#ffe0e8', 200: '#ffb3c6', 300: '#ff7096', 400: '#ff3d71', 500: '#e8174a' },
+            sand:   { 50: '#faf8f5', 100: '#f2ede5', 200: '#e5ddd0', 300: '#cfc0ab' },
+            espresso: '#1c1410',
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'DM Sans', sans-serif; background: #faf8f5; color: #1c1410; }
+
+    .grain {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 180px 180px; opacity: 0.5;
+    }
+
+    .activity-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+    .activity-btn {
+      background: #f2ede5;
+      border: 1.5px solid transparent;
+      border-radius: 10px;
+      padding: 10px 4px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.18s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .activity-btn:hover { border-color: #ffb3c6; }
+    .activity-btn.selected { background: #fff5f7; border-color: #ff7096; }
+    .activity-btn .act-level { font-size: 15px; font-weight: 700; color: #1c1410; display: block; }
+    .activity-btn .act-desc  { font-size: 10px; color: #9b8880; display: block; line-height: 1.3; margin-top: 3px; }
+    .activity-btn.selected .act-level { color: #e8174a; }
+    .activity-btn.selected .act-desc  { color: #ff7096; }
+
+    .input-field {
+      width: 100%;
+      background: white;
+      border: 1.5px solid #e5ddd0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      color: #1c1410;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .input-field:focus { border-color: #ff7096; box-shadow: 0 0 0 3px rgba(255,112,150,0.12); }
+
+    .unit-toggle {
+      display: inline-flex;
+      background: #f2ede5;
+      border-radius: 10px;
+      padding: 3px;
+      gap: 2px;
+      margin-bottom: 20px;
+    }
+    .toggle-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: #9b8880;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .toggle-btn.active-imperial { background: #ff7096; color: white; box-shadow: 0 1px 4px rgba(255,112,150,0.3); }
+    .toggle-btn.active-metric   { background: #4a9e8e; color: white; box-shadow: 0 1px 4px rgba(74,158,142,0.3); }
+
+    .result-card {
+      background: white;
+      border: 1.5px solid #e5ddd0;
+      border-radius: 16px;
+      padding: 20px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .result-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, #ff7096, #ffb3c6);
+    }
+
+    .result-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #9b8880;
+    }
+    .result-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #1c1410;
+      line-height: 1.1;
+    }
+    .result-unit {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      color: #9b8880;
+      margin-left: 4px;
+    }
+
+    .calc-btn {
+      background: linear-gradient(135deg, #ff7096 0%, #e8174a 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 15px 32px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity 0.2s, transform 0.15s;
+      box-shadow: 0 4px 20px rgba(232,23,74,0.25);
+    }
+    .calc-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+    .calc-btn:active { transform: translateY(0); }
+
+    .results-section { display: none; }
+    .results-section.visible { display: block; }
+
+    .fade-in { animation: fadeUp 0.4s ease both; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #cfc0ab;
+    }
+
+    .insight-card {
+      background: white;
+      border: 1.5px solid #e5ddd0;
+      border-radius: 16px;
+      padding: 20px 24px;
+    }
+    .insight-card.positive { border-color: #ffb3c6; background: #fff5f7; }
+    .insight-card.neutral  { border-color: #e5ddd0; background: #faf8f5; }
+    .insight-card.caution  { border-color: #f5dfc0; background: #fffaf5; }
+
+    .insight-title {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .insight-title.positive { color: #e8174a; }
+    .insight-title.neutral  { color: #9b8880; }
+    .insight-title.caution  { color: #c07820; }
+
+    .insight-text {
+      font-size: 19px;
+      line-height: 1.65;
+      color: #3a2a24;
+    }
+    .insight-metrics {
+      display: flex;
+      gap: 20px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e5ddd0;
+    }
+    .insight-metric-item { display: flex; flex-direction: column; }
+    .insight-metric-val  { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #1c1410; }
+    .insight-metric-lbl  { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #9b8880; }
+  </style>
+</head>
+<body class="min-h-screen relative">
+  <div class="grain"></div>
+
+  <div class="relative z-10 max-w-md mx-auto px-5 py-10">
+
+    <!-- Header -->
+    <div class="mb-10">
+      <p class="section-label mb-2">Female Macro Calculator</p>
+      <h1 class="font-display text-4xl font-black leading-tight text-espresso">
+        Your numbers,<br/><span style="color:#ff7096">dialed in.</span>
+      </h1>
+    </div>
+
+    <!-- Form -->
+    <div class="space-y-5">
+
+      <!-- Age -->
+      <div>
+        <label class="result-label block mb-2">Age</label>
+        <input id="age" type="number" min="16" max="80" placeholder="e.g. 28" class="input-field" />
+      </div>
+
+      <!-- Unit System Toggle -->
+      <div>
+        <label class="result-label block mb-2">Unit System</label>
+        <div class="unit-toggle">
+          <button class="toggle-btn active-imperial" id="btn-imperial" onclick="setUnitSystem('imperial')">Imperial (ft · lb)</button>
+          <button class="toggle-btn" id="btn-metric" onclick="setUnitSystem('metric')">Metric (cm · kg)</button>
+        </div>
+      </div>
+
+      <!-- Height -->
+      <div>
+        <label class="result-label block mb-2">Height</label>
+        <div id="height-imperial" class="flex gap-2">
+          <input id="height-ft" type="number" min="3" max="7" placeholder="ft" class="input-field" style="width:50%" />
+          <input id="height-in" type="number" min="0" max="11" placeholder="in" class="input-field" style="width:50%" />
+        </div>
+        <div id="height-metric" class="hidden">
+          <input id="height-cm" type="number" min="100" max="220" placeholder="cm" class="input-field" />
+        </div>
+      </div>
+
+      <!-- Weight -->
+      <div>
+        <label class="result-label block mb-2">Weight</label>
+        <input id="weight" type="number" min="30" max="400" placeholder="e.g. 143 lb" class="input-field" />
+      </div>
+
+      <!-- Body Fat -->
+      <div>
+        <label class="result-label block mb-2">Body Fat %</label>
+        <input id="bodyfat" type="number" min="5" max="60" step="0.5" placeholder="e.g. 25" class="input-field" />
+      </div>
+
+      <!-- Activity Level -->
+      <div>
+        <label class="result-label block mb-2">Weekly Activity Level</label>
+        <div class="activity-grid">
+          <button class="activity-btn selected" data-level="1" onclick="setActivity(1)">
+            <span class="act-level">L1</span>
+            <span class="act-desc">No workouts</span>
+          </button>
+          <button class="activity-btn" data-level="2" onclick="setActivity(2)">
+            <span class="act-level">L2</span>
+            <span class="act-desc">1–2 / week</span>
+          </button>
+          <button class="activity-btn" data-level="3" onclick="setActivity(3)">
+            <span class="act-level">L3</span>
+            <span class="act-desc">3–4 / week</span>
+          </button>
+          <button class="activity-btn" data-level="4" onclick="setActivity(4)">
+            <span class="act-level">L4</span>
+            <span class="act-desc">5–6 / week</span>
+          </button>
+          <button class="activity-btn" data-level="5" onclick="setActivity(5)">
+            <span class="act-level">L5</span>
+            <span class="act-desc">Daily</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <p id="error-msg" class="text-sm hidden" style="color:#e8174a"></p>
+
+      <!-- Calculate -->
+      <button class="calc-btn mt-2" onclick="calculate()">Calculate my macros</button>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="results-section mt-10 space-y-4 fade-in">
+
+      <p class="section-label mb-1" id="r-section-label">Your daily targets</p>
+
+      <!-- Full deficit macro set -->
+      <div id="r-macros-full">
+        <div class="result-card">
+          <p class="result-label mb-1">Calories</p>
+          <p class="result-value" id="r-calories">–</p>
+          <span class="result-unit">kcal / day</span>
+        </div>
+
+        <div class="result-card" style="margin-top:16px;">
+          <p class="result-label mb-1">Protein</p>
+          <p class="result-value" id="r-protein">–</p>
+          <span class="result-unit">g / day</span>
+        </div>
+
+        <div class="result-card" style="margin-top:16px;">
+          <p class="result-label mb-1">Fat</p>
+          <p class="result-value" id="r-fat">–</p>
+          <span class="result-unit">g / day</span>
+        </div>
+
+        <div class="result-card" style="margin-top:16px;">
+          <p class="result-label mb-1">Carbs</p>
+          <p class="result-value" id="r-carbs">–</p>
+          <span class="result-unit">g / day (upper limit)</span>
+        </div>
+      </div>
+
+      <!-- Recomp macro set (protein + carbs only) -->
+      <div id="r-macros-recomp" style="display:none;">
+        <div class="result-card">
+          <p class="result-label mb-1">Protein</p>
+          <p class="result-value" id="r-recomp-protein">–</p>
+          <span class="result-unit">g / day</span>
+          <p style="font-size:11px; color:#4a9e8e; margin-top:6px; font-weight:500;">↑ Bumped to 0.9–1.1g/lb LBM for recomp</p>
+        </div>
+
+        <div class="result-card" style="margin-top:16px;">
+          <p class="result-label mb-1">Carbs</p>
+          <p class="result-value" id="r-recomp-carbs">–</p>
+          <span class="result-unit">g / day (upper limit)</span>
+        </div>
+      </div>
+
+      <!-- LBM note -->
+      <p id="r-lbm" class="text-xs text-center" style="color:#9b8880; padding-top:4px;"></p>
+
+      <!-- BMI / LBMI Insight -->
+      <div id="r-insight" class="insight-card neutral" style="margin-top:8px;">
+        <p id="r-insight-title" class="insight-title neutral">Body Composition Insight</p>
+        <p id="r-insight-text" class="insight-text"></p>
+        <div class="insight-metrics">
+          <div class="insight-metric-item">
+            <span id="r-bmi-val" class="insight-metric-val">–</span>
+            <span class="insight-metric-lbl">BMI</span>
+          </div>
+          <div class="insight-metric-item">
+            <span id="r-lbmi-val" class="insight-metric-val">–</span>
+            <span class="insight-metric-lbl">LBMI</span>
+          </div>
+          <div class="insight-metric-item" id="r-target-wrap" style="display:none;">
+            <span id="r-target-val" class="insight-metric-val">–</span>
+            <span id="r-target-lbl" class="insight-metric-lbl">Target loss</span>
+          </div>
+        </div>
+        <p id="r-rate" class="insight-text" style="margin-top:10px; font-size:17px; color:#9b8880;"></p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let unitSystem = 'imperial'; // 'imperial' | 'metric'
+    let activityLevel = 1;
+
+    const ACTIVITY_MULTIPLIERS = {
+      1: { low: 1.10, high: 1.20, label: 'no workouts' },
+      2: { low: 1.20, high: 1.30, label: '1–2 workouts per week' },
+      3: { low: 1.35, high: 1.45, label: '3–4 workouts per week' },
+      4: { low: 1.50, high: 1.60, label: '5–6 workouts per week' },
+      5: { low: 1.65, high: 1.75, label: 'daily workouts' },
+    };
+
+    function setActivity(level) {
+      activityLevel = level;
+      document.querySelectorAll('.activity-btn').forEach(btn => {
+        btn.classList.toggle('selected', parseInt(btn.dataset.level) === level);
+      });
+    }
+
+    function setUnitSystem(sys) {
+      unitSystem = sys;
+      const isImperial = sys === 'imperial';
+      document.getElementById('btn-imperial').className = 'toggle-btn' + (isImperial ? ' active-imperial' : '');
+      document.getElementById('btn-metric').className   = 'toggle-btn' + (!isImperial ? ' active-metric'  : '');
+      document.getElementById('height-imperial').classList.toggle('hidden', !isImperial);
+      document.getElementById('height-metric').classList.toggle('hidden',   isImperial);
+      document.getElementById('weight').placeholder = isImperial ? 'e.g. 143 lb' : 'e.g. 65 kg';
+      // clear weight so user re-enters in correct unit
+      document.getElementById('weight').value = '';
+      document.getElementById('height-ft').value = '';
+      document.getElementById('height-in').value = '';
+      document.getElementById('height-cm').value = '';
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    function clearError() {
+      document.getElementById('error-msg').classList.add('hidden');
+    }
+
+    function fmt(low, high) {
+      return Math.round(low) + ' – ' + Math.round(high);
+    }
+
+    // Height-normalized LBMI: thresholds shift ±0.015 per cm from 163cm anchor (5'4")
+    function lbmiCategory(lbmi, heightCm) {
+      const adj  = (heightCm - 163) * 0.015;
+      if (lbmi < 17 + adj)       return 'low';
+      if (lbmi < 19 + adj)       return 'average';
+      if (lbmi < 21 + adj)       return 'above-average';
+      if (lbmi <= 24 + adj)      return 'high';
+      return 'exceptional';
+    }
+
+    function lbmiLabel(cat) {
+      return {
+        'low':           'low muscle mass',
+        'average':       'average muscle mass',
+        'above-average': 'above-average muscle mass',
+        'high':          'high muscle mass',
+        'exceptional':   'exceptionally high muscle mass',
+      }[cat];
+    }
+
+    // Target BF% by LBMI category — used to anchor a lean-mass-preserving goal weight
+    function targetBFByLBMI(lbmiCat) {
+      return { low: 0.32, average: 0.30, 'above-average': 0.27, high: 0.25, exceptional: 0.25 }[lbmiCat];
+    }
+
+    // Returns the higher (more conservative) of: LBM-anchored target vs BMI-24.9 target
+    // Also returns which method was used so insight text can explain it
+    function computeTargetWeight(lbmKg, lbmiCat, heightM) {
+      const bmiTarget  = 24.9 * heightM * heightM;
+      const targetBF   = targetBFByLBMI(lbmiCat);
+      const lbmTarget  = lbmKg / (1 - targetBF);
+      if (lbmTarget >= bmiTarget) {
+        return { targetKg: lbmTarget, method: 'lbm', targetBFpct: Math.round(targetBF * 100) };
+      }
+      return { targetKg: bmiTarget, method: 'bmi', targetBFpct: null };
+    }
+
+    function getInsight(bmi, lbmi, lbmKg, weightKg, heightM) {
+      const lbmiCat = lbmiCategory(lbmi, heightM * 100);
+      const { targetKg, method, targetBFpct } = computeTargetWeight(lbmKg, lbmiCat, heightM);
+      const lossKg = weightKg - targetKg;
+
+      // Helper: builds the target weight sentence for deficit cases
+      function targetSentence(lossKg, targetKg) {
+        const lossLb   = lossKg  * 2.20462;
+        const targetLb = targetKg * 2.20462;
+        const methodNote = method === 'lbm'
+          ? `Based on your lean mass, we recommend targeting ${targetLb.toFixed(0)} lbs (${targetKg.toFixed(1)} kg) rather than the standard BMI target — this preserves your muscle and reflects a realistic, healthy body composition for your frame.`
+          : `To reach a healthy BMI your target weight is ${targetLb.toFixed(0)} lbs (${targetKg.toFixed(1)} kg).`;
+        return methodNote;
+      }
+
+      if (bmi < 18.5) {
+        return {
+          tone: 'caution',
+          text: `Your BMI of ${bmi.toFixed(1)} indicates you are underweight. A calorie deficit is not recommended at this time. Focus on eating at maintenance or a slight surplus, with high protein intake to support lean mass development.`,
+          deficitRecommended: false,
+        };
+      }
+
+      if (bmi < 25) {
+        if (lbmiCat === 'low') {
+          return {
+            tone: 'caution',
+            text: `Your BMI of ${bmi.toFixed(1)} is in the healthy range, but your LBMI of ${lbmi.toFixed(1)} suggests low muscle mass. Rather than a deficit, a body recomposition approach is recommended — eat at maintenance, prioritise protein, and focus on resistance training to build lean mass.`,
+            deficitRecommended: false,
+          };
+        }
+        return {
+          tone: 'positive',
+          text: `Your BMI of ${bmi.toFixed(1)} is in the healthy range and your LBMI of ${lbmi.toFixed(1)} reflects ${lbmiLabel(lbmiCat)}. A calorie deficit is not needed at this time. Your current macros are calculated for reference, but eating at maintenance and focusing on performance is recommended.`,
+          deficitRecommended: false,
+        };
+      }
+
+      if (bmi < 30) {
+        if (lbmiCat === 'low' || lbmiCat === 'average') {
+          return {
+            tone: 'neutral',
+            text: `Your BMI of ${bmi.toFixed(1)} is in the overweight range and your LBMI of ${lbmi.toFixed(1)} indicates ${lbmiLabel(lbmiCat)}. A deficit is recommended — prioritise hitting the higher end of your protein range to protect lean mass while losing fat. ${targetSentence(lossKg, targetKg)}`,
+            deficitRecommended: true,
+            targetLossKg: lossKg,
+          };
+        }
+        if (lbmiCat === 'above-average') {
+          return {
+            tone: 'neutral',
+            text: `Your BMI of ${bmi.toFixed(1)} is slightly elevated, but your LBMI of ${lbmi.toFixed(1)} suggests ${lbmiLabel(lbmiCat)} — meaning muscle is contributing to your weight. A mild deficit or body recomposition approach would both be appropriate. ${targetSentence(lossKg, targetKg)}`,
+            deficitRecommended: true,
+            targetLossKg: lossKg,
+          };
+        }
+        // high or exceptional LBMI — BMI elevated by muscle
+        return {
+          tone: 'positive',
+          text: `Your BMI of ${bmi.toFixed(1)} is technically overweight, but your LBMI of ${lbmi.toFixed(1)} indicates ${lbmiLabel(lbmiCat)}. This strongly suggests your elevated BMI is driven by muscle mass, not excess fat. A deficit is likely not needed — BMI is not a reliable indicator for your body type.`,
+          deficitRecommended: false,
+        };
+      }
+
+      // BMI ≥ 30
+      return {
+        tone: 'neutral',
+        text: `Your BMI of ${bmi.toFixed(1)} is in the obese range. Your LBMI of ${lbmi.toFixed(1)} reflects ${lbmiLabel(lbmiCat)}, which is a strong foundation to work from. A calorie deficit is recommended. ${targetSentence(lossKg, targetKg)}`,
+        deficitRecommended: true,
+        targetLossKg: lossKg,
+      };
+    }
+
+    function calculate() {
+      clearError();
+
+      const age  = parseFloat(document.getElementById('age').value);
+      const bf   = parseFloat(document.getElementById('bodyfat').value) / 100;
+      const wRaw = parseFloat(document.getElementById('weight').value);
+
+      // Height → cm
+      let heightCm;
+      if (unitSystem === 'imperial') {
+        const ft  = parseFloat(document.getElementById('height-ft').value) || 0;
+        const ins = parseFloat(document.getElementById('height-in').value) || 0;
+        heightCm = (ft * 12 + ins) * 2.54;
+      } else {
+        heightCm = parseFloat(document.getElementById('height-cm').value);
+      }
+
+      // Weight → kg
+      const weightKg = unitSystem === 'imperial' ? wRaw * 0.453592 : wRaw;
+
+      // Validate
+      if (isNaN(age) || age < 16 || age > 80)    { showError('Please enter a valid age (16–80).'); return; }
+      if (isNaN(heightCm) || heightCm < 100)      { showError('Please enter a valid height.'); return; }
+      if (isNaN(weightKg) || weightKg < 30)       { showError('Please enter a valid weight.'); return; }
+      if (isNaN(bf) || bf < 0.05 || bf > 0.60)   { showError('Please enter a body fat % between 5 and 60.'); return; }
+
+      // ── Core calculations ─────────────────────────────────────
+      const lbmKg  = weightKg * (1 - bf);
+      const lbmLbs = lbmKg * 2.20462;
+      const heightM = heightCm / 100;
+
+      const bmi  = weightKg / (heightM * heightM);
+      const lbmi = lbmKg   / (heightM * heightM);
+
+      // Katch-McArdle BMR
+      const bmr = 370 + 21.6 * lbmKg;
+
+      // TDEE range (sedentary 1.1–1.2)
+      const actMult  = ACTIVITY_MULTIPLIERS[activityLevel];
+      const tdeeLow  = bmr * actMult.low;
+      const tdeeHigh = bmr * actMult.high;
+
+      // Deficit targets — with 1200/1500 kcal hard floors for safety
+      const defLow  = Math.max(1200, tdeeLow  - 625);
+      const defHigh = Math.max(1500, tdeeHigh - 375);
+
+      // Protein range (g) — LBM in lbs · 0.8–1.0 g/lb · 200g hard ceiling
+      const protLow  = 0.8 * lbmLbs;
+      const protHigh = Math.min(200, 1.0 * lbmLbs);
+
+      // Fat: single value — 30% of defLow
+      const fatCal = defLow * 0.30;
+      const fatG   = fatCal / 9;
+
+      // Carbs: two values — high protein → fewer carbs, low protein → more carbs
+      const carbsAtHighProt = Math.max(0, (defLow - fatCal - protHigh * 4) / 4);
+      const carbsAtLowProt  = Math.max(0, (defLow - fatCal - protLow  * 4) / 4);
+
+      // Rate of loss is fixed by design: 375–625 kcal/day deficit = 0.75–1.25 lbs/week
+      const rateText = 'At this deficit you can expect to lose 0.75 to 1.25 lbs (0.34 to 0.57 kg) per week.';
+
+      // ── Rounding helpers (directional, nearest 5) ────────────
+      const r5down    = v => Math.floor(v  / 5) * 5;
+      const r5up      = v => Math.ceil(v   / 5) * 5;
+      const r5nearest = v => Math.round(v  / 5) * 5;
+
+      // ── Render insight first — determines recomp mode ─────────
+      const calFloorApplied = (tdeeLow - 625) < 1200 || (tdeeHigh - 375) < 1500;
+      const actLabel = ACTIVITY_MULTIPLIERS[activityLevel].label;
+      const insight  = getInsight(bmi, lbmi, lbmKg, weightKg, heightM);
+
+      // Recomp mode: no deficit recommended, OR loss target ≤ 10 lbs
+      const targetLossLbs = insight.targetLossKg ? insight.targetLossKg * 2.20462 : 999;
+      const recompMode = !insight.deficitRecommended ||
+                         (insight.deficitRecommended && targetLossLbs <= 10);
+
+      // ── Deficit macro calculations ────────────────────────────
+      const calLow  = r5down(defLow);
+      const calHigh = r5down(defHigh);
+      const pLow    = r5up(protLow);
+      const pHigh   = r5up(protHigh);
+      const fatLow  = r5nearest(defLow  * 0.30 / 9);
+      const fatHigh = r5nearest(defHigh * 0.30 / 9);
+      const carbsHighDayHi = (defHigh - defHigh * 0.30 - protHigh * 4) / 4;
+      const carbsHighDayLo = (defHigh - defHigh * 0.30 - protLow  * 4) / 4;
+      const carbsMid = r5down((carbsHighDayHi + carbsHighDayLo) / 2);
+
+      // ── Recomp macro calculations ─────────────────────────────
+      // Protein bumped to 0.9–1.1g/lb LBM for recomp; 200g cap retained
+      const recompProtLow  = r5up(0.9 * lbmLbs);
+      const recompProtHigh = r5up(Math.min(200, 1.1 * lbmLbs));
+      // Carbs from TDEE midpoint — maintenance calories, not deficit
+      const tdeeMid        = (tdeeLow + tdeeHigh) / 2;
+      const recompCarbs    = r5down((tdeeMid * 0.70 - recompProtLow * 4) / 4);
+
+      // ── Show correct macro set ────────────────────────────────
+      const fullEl   = document.getElementById('r-macros-full');
+      const recompEl = document.getElementById('r-macros-recomp');
+      const labelEl  = document.getElementById('r-section-label');
+
+      if (recompMode) {
+        fullEl.style.display   = 'none';
+        recompEl.style.display = 'block';
+        labelEl.textContent    = 'Recomposition targets';
+        document.getElementById('r-recomp-protein').textContent = recompProtLow + ' – ' + recompProtHigh;
+        document.getElementById('r-recomp-carbs').textContent   = 'Up to ' + recompCarbs;
+      } else {
+        fullEl.style.display   = 'block';
+        recompEl.style.display = 'none';
+        labelEl.textContent    = 'Your daily targets';
+        document.getElementById('r-calories').textContent = calLow + ' – ' + calHigh;
+        document.getElementById('r-protein').textContent  = pLow  + ' – ' + pHigh;
+        document.getElementById('r-fat').textContent      = fatLow + ' – ' + fatHigh;
+        document.getElementById('r-carbs').textContent    = 'Up to ' + carbsMid;
+      }
+
+      document.getElementById('r-lbm').textContent =
+        'LBM: ' + lbmKg.toFixed(1) + ' kg  ·  ' + lbmLbs.toFixed(1) + ' lbs';
+
+      const card  = document.getElementById('r-insight');
+      const title = document.getElementById('r-insight-title');
+      card.className  = 'insight-card ' + insight.tone;
+      title.className = 'insight-title ' + insight.tone;
+      title.textContent = insight.tone === 'positive' ? 'Great news' :
+                          insight.tone === 'caution'  ? 'Heads up' : 'Body Composition Insight';
+
+      const floorNote = calFloorApplied
+        ? ' A minimum calorie floor of 1,200–1,500 kcal has been applied to keep your intake safe.'
+        : '';
+      const actNote = `These targets are calculated based on ${actLabel}. `;
+      document.getElementById('r-insight-text').innerHTML = (actNote + insight.text + floorNote)
+        .split(/(?<=\.) /)
+        .map(s => `<span style="display:block; margin-bottom:8px;">${s}</span>`)
+        .join('');
+      document.getElementById('r-bmi-val').textContent  = bmi.toFixed(1);
+      document.getElementById('r-lbmi-val').textContent = lbmi.toFixed(1);
+
+      const targetWrap = document.getElementById('r-target-wrap');
+      const rateEl     = document.getElementById('r-rate');
+
+      if (insight.deficitRecommended && insight.targetLossKg > 0) {
+        const targetLossLb = insight.targetLossKg * 2.20462;
+        const displayLoss  = unitSystem === 'metric'
+          ? insight.targetLossKg.toFixed(1) + ' kg'
+          : targetLossLb.toFixed(1) + ' lbs';
+        document.getElementById('r-target-val').textContent = displayLoss;
+        document.getElementById('r-target-lbl').textContent = 'suggested loss';
+        targetWrap.style.display = 'flex';
+
+        rateEl.innerHTML = rateText;
+      } else {
+        targetWrap.style.display = 'none';
+        rateEl.textContent = '';
+      }
+
+      // ── Show results ──────────────────────────────────────────
+      const resultsEl = document.getElementById('results');
+      resultsEl.classList.add('visible');
+      resultsEl.classList.remove('fade-in');
+      void resultsEl.offsetWidth;
+      resultsEl.classList.add('fade-in');
+
+      setTimeout(() => {
+        resultsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    }
+  </script>
+</body>
+</html>
